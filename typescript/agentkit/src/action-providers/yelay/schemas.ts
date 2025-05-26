@@ -6,9 +6,6 @@ import { z } from "zod";
 export const VaultsDetailsSchema = z
   .object({
     chainId: z.number().describe("The chain ID of the network"),
-    vaultAddresses: z
-      .array(z.string())
-      .describe("The addresses of the Yelay Vaults to get the details for"),
   })
   .describe("Vaults details query schema");
 

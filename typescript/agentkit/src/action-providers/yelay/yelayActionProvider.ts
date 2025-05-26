@@ -18,8 +18,8 @@ import {
   YelayRedeemSchema,
   VaultsDetailsSchema,
 } from "./schemas";
-import { VaultsDetailsResponse } from "./types";
-import { YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI } from "./constants";
+import { APYResponse, VaultsDetailsResponse } from "./types";
+import { YELAY_API_URL, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI } from "./constants";
 import { Hex, parseUnits, encodeFunctionData } from "viem";
 import { abi } from "../erc20/constants";
 
@@ -41,10 +41,10 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   }
 
   /**
-   * Gets the details of the connected wallet including address, network, and balance.
+   * Gets the details of the Yelay vaults with their last week APY.
    *
    * @param args - The input arguments for the action
-   * @returns A formatted string containing the wallet details.
+   * @returns A formatted string containing the list of vaults with their APY.
    */
   @CreateAction({
     name: "get_vaults",
@@ -62,13 +62,18 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   `,
     schema: VaultsDetailsSchema,
   })
-  async getVaults(args: z.infer<typeof VaultsDetailsSchema>): Promise<VaultsDetailsResponse> {
-    // fetch vaults from yelay api
-    const response = await fetch(
-      `https://lite.api.yelay.io/v2/vaults?chainId=${args.chainId}&vaultAddresses=${args.vaultAddresses.join(",")}`,
-    );
-    const data = (await response.json()) as VaultsDetailsResponse;
-    return data;
+  async getVaults(args: z.infer<typeof VaultsDetailsSchema>): Promise<string[]> {
+    const [vaultsResponse, vaultAPYsResponse] = await Promise.all([
+      fetch(`${YELAY_API_URL}/v2/vaults?chainId=${args.chainId}`),
+      fetch(`${YELAY_API_URL}/v2/interest/vaults?chainId=${args.chainId}`),
+    ]);
+    const vaults = (await vaultsResponse.json()) as VaultsDetailsResponse[];
+    const vaultAPYs = (await vaultAPYsResponse.json()) as APYResponse[];
+    const vaultsDetails = vaults.map(vault => ({
+      ...vault,
+      apy: vaultAPYs.find(apy => apy.vault === vault.address)?.apy,
+    }));
+    return vaultsDetails.map(vault => `${vault.address}: ${vault.apy}`);
   }
 
   /**
