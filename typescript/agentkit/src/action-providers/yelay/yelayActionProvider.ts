@@ -18,8 +18,8 @@ import {
   YelayRedeemSchema,
   VaultsDetailsSchema,
 } from "./schemas";
-import { APYResponse, VaultsDetailsResponse } from "./types";
-import { YELAY_API_URL, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI } from "./constants";
+import type { APYResponse, VaultsDetailsResponse, ChainId, SDKConfig } from "./types";
+import { getEnvironment, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI } from "./constants";
 import { Hex, parseUnits, encodeFunctionData } from "viem";
 import { abi } from "../erc20/constants";
 
@@ -33,17 +33,27 @@ const SUPPORTED_NETWORKS = ["1", "146", "8453"]; // Mainnet, Sonic, Base
  * It supports all evm networks.
  */
 export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
+  private readonly chainId: ChainId;
+  private readonly isTest: boolean;
+  private readonly config: SDKConfig;
+
   /**
    * Constructor for the YelayActionProvider.
+   *
+   * @param chainId - The chain ID to use for this provider
+   * @param isTest - Whether to use test environment (only supported for Base chain)
    */
-  constructor() {
+  constructor(chainId: ChainId, isTest: boolean = false) {
     super("yelay", []);
+    this.chainId = chainId;
+    this.isTest = isTest;
+    this.config = getEnvironment(chainId, isTest);
   }
 
   /**
    * Gets the details of the Yelay vaults with their last week APY.
    *
-   * @param args - The input arguments for the action
+   * @param _args - The input arguments for the action (unused, uses provider's chainId)
    * @returns A formatted string containing the list of vaults with their APY.
    */
   @CreateAction({
@@ -62,18 +72,46 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   `,
     schema: VaultsDetailsSchema,
   })
-  async getVaults(args: z.infer<typeof VaultsDetailsSchema>): Promise<string[]> {
-    const [vaultsResponse, vaultAPYsResponse] = await Promise.all([
-      fetch(`${YELAY_API_URL}/v2/vaults?chainId=${args.chainId}`),
-      fetch(`${YELAY_API_URL}/v2/interest/vaults?chainId=${args.chainId}`),
-    ]);
-    const vaults = (await vaultsResponse.json()) as VaultsDetailsResponse[];
-    const vaultAPYs = (await vaultAPYsResponse.json()) as APYResponse[];
-    const vaultsDetails = vaults.map(vault => ({
-      ...vault,
-      apy: vaultAPYs.find(apy => apy.vault === vault.address)?.apy,
-    }));
-    return vaultsDetails.map(vault => `${vault.address}: ${vault.apy}`);
+  /**
+   * Gets the list of available vaults with their APY
+   *
+   * @param _args - The input arguments (unused, uses provider's chainId)
+   * @returns Array of vault addresses with their APY
+   */
+  async getVaults(_args: z.infer<typeof VaultsDetailsSchema>): Promise<string[]> {
+    let vaultsResponse: Response;
+    let vaultAPYsResponse: Response;
+
+    try {
+      [vaultsResponse, vaultAPYsResponse] = await Promise.all([
+        fetch(`${this.config.backendUrl}/vaults?chainId=${this.chainId}`),
+        fetch(`${this.config.backendUrl}/interest/vaults?chainId=${this.chainId}`),
+      ]);
+
+      if (!vaultsResponse.ok || !vaultAPYsResponse.ok) {
+        const errorMessage = !vaultsResponse.ok
+          ? `Failed to fetch vaults: ${vaultsResponse.status} ${vaultsResponse.statusText}`
+          : `Failed to fetch APYs: ${vaultAPYsResponse.status} ${vaultAPYsResponse.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      const [vaults, vaultAPYs] = await Promise.all([
+        vaultsResponse.json() as Promise<VaultsDetailsResponse[]>,
+        vaultAPYsResponse.json() as Promise<APYResponse[]>,
+      ]);
+
+      const vaultsDetails = vaults.map(vault => ({
+        ...vault,
+        apy: vaultAPYs.find(apy => apy.vault === vault.address)?.apy,
+      }));
+
+      return vaultsDetails.map(vault => `${vault.name}: APY ${vault.apy}%`);
+    } catch (error) {
+      if (error instanceof Error) {
+        console.error("Error fetching vault data:", error.message);
+      }
+      throw new Error("Yeld backend is currently unavailable. Please try again later.");
+    }
   }
 
   /**
@@ -253,4 +291,17 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
  *
  * @returns A new YelayActionProvider instance
  */
-export const yelayActionProvider = () => new YelayActionProvider();
+export interface YelayActionProviderOptions {
+  chainId: ChainId;
+  isTest?: boolean;
+}
+
+/**
+ * Creates a new YelayActionProvider instance
+ *
+ * @param options - Configuration options for the provider
+ * @returns A new YelayActionProvider instance
+ */
+export const yelayActionProvider = (options: YelayActionProviderOptions): YelayActionProvider => {
+  return new YelayActionProvider(options.chainId, options.isTest || false);
+};
