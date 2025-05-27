@@ -21,17 +21,7 @@ export const YelayDepositSchema = z
     receiver: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format")
-      .describe(
-        "The address that will own the position on the vault which will receive the shares",
-      ),
-    tokenAddress: z
-      .string()
-      .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format")
-      .describe("The address of the assets token to approve for deposit"),
-    vaultAddress: z
-      .string()
-      .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format")
-      .describe("The address of the Yelay Vault to deposit to"),
+      .describe("The vault address which will receive the shares"),
   })
   .describe("Input schema for Yelay Vault deposit action");
 
@@ -43,7 +33,7 @@ export const YelayRedeemSchema = z
     vaultAddress: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format")
-      .describe("The address of the Yelay Vault to redeem from"),
+      .describe("The vault address which will redeem the shares"),
     assets: z
       .string()
       .regex(/^\d+$/, "Must be a valid whole number")
@@ -51,7 +41,7 @@ export const YelayRedeemSchema = z
     receiver: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format")
-      .describe("The address to receive the shares"),
+      .describe("The vault address from which will redeem the shares"),
   })
   .strip()
   .describe("Input schema for Yelay Vault redeem action");
@@ -64,15 +54,7 @@ export const YelayClaimSchema = z
     vaultAddress: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format")
-      .describe("The address of the Yelay Vault to claim yield from"),
-    assets: z
-      .string()
-      .regex(/^\d+$/, "Must be a valid whole number")
-      .describe("The amount of assets to claim in atomic units e.g. 1"),
-    receiver: z
-      .string()
-      .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format")
-      .describe("The address to receive the yield"),
+      .describe("The vault address from which will claim yield"),
   })
   .strip()
   .describe("Input schema for Yelay Vault claim action");

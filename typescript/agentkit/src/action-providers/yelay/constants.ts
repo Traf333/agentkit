@@ -4,82 +4,28 @@ export const RETAIL_POOL_ID = 10;
 
 export const YELAY_VAULT_ABI = [
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "yelayLiteVault",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "projectId",
-        type: "uint256",
-      },
-      {
-        components: [
-          {
-            internalType: "address",
-            name: "tokenIn",
-            type: "address",
-          },
-          {
-            internalType: "address",
-            name: "swapTarget",
-            type: "address",
-          },
-          {
-            internalType: "bytes",
-            name: "swapCallData",
-            type: "bytes",
-          },
-        ],
-        internalType: "struct SwapArgs",
-        name: "swapArgs",
-        type: "tuple",
-      },
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "swapAndDeposit",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "shares",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "payable",
     type: "function",
+    name: "deposit",
+    inputs: [
+      { name: "assets", type: "uint256", internalType: "uint256" },
+      { name: "projectId", type: "uint256", internalType: "uint256" },
+      { name: "receiver", type: "address", internalType: "address" },
+    ],
+    outputs: [{ name: "shares", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable",
   },
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "yelayLiteVault",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "projectId",
-        type: "uint256",
-      },
-    ],
-    name: "wrapEthAndDeposit",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "shares",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "payable",
     type: "function",
+    name: "redeem",
+    inputs: [
+      { name: "shares", type: "uint256", internalType: "uint256" },
+      { name: "projectId", type: "uint256", internalType: "uint256" },
+      { name: "receiver", type: "address", internalType: "address" },
+    ],
+    outputs: [{ name: "assets", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable",
   },
 ];
-
 export const YIELD_EXTRACTOR_ABI = [
   {
     inputs: [
@@ -88,7 +34,7 @@ export const YIELD_EXTRACTOR_ABI = [
           { internalType: "address", name: "yelayLiteVault", type: "address" },
           {
             internalType: "uint256",
-            name: "projectId",
+            name: "poolId",
             type: "uint256",
           },
           {
@@ -121,17 +67,17 @@ export const YIELD_EXTRACTOR_ABI = [
     inputs: [
       {
         internalType: "address",
-        name: "",
+        name: "user",
         type: "address",
       },
       {
         internalType: "address",
-        name: "",
+        name: "yelayLiteVault",
         type: "address",
       },
       {
         internalType: "uint256",
-        name: "",
+        name: "poolID",
         type: "uint256",
       },
     ],

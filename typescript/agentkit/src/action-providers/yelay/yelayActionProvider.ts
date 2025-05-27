@@ -18,8 +18,14 @@ import {
   YelayRedeemSchema,
   VaultsDetailsSchema,
 } from "./schemas";
-import type { APYResponse, VaultsDetailsResponse, ChainId, SDKConfig } from "./types";
-import { getEnvironment, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI } from "./constants";
+import type {
+  APYResponse,
+  VaultsDetailsResponse,
+  ChainId,
+  SDKConfig,
+  ClaimRequestRaw,
+} from "./types";
+import { getEnvironment, RETAIL_POOL_ID, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI } from "./constants";
 import { Hex, parseUnits, encodeFunctionData } from "viem";
 import { abi } from "../erc20/constants";
 
@@ -53,7 +59,6 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   /**
    * Gets the details of the Yelay vaults with their last week APY.
    *
-   * @param _args - The input arguments for the action (unused, uses provider's chainId)
    * @returns A formatted string containing the list of vaults with their APY.
    */
   @CreateAction({
@@ -72,13 +77,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   `,
     schema: VaultsDetailsSchema,
   })
-  /**
-   * Gets the list of available vaults with their APY
-   *
-   * @param _args - The input arguments (unused, uses provider's chainId)
-   * @returns Array of vault addresses with their APY
-   */
-  async getVaults(_args: z.infer<typeof VaultsDetailsSchema>): Promise<string[]> {
+  async getVaults(): Promise<string> {
     let vaultsResponse: Response;
     let vaultAPYsResponse: Response;
 
@@ -105,12 +104,12 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
         apy: vaultAPYs.find(apy => apy.vault === vault.address)?.apy,
       }));
 
-      return vaultsDetails.map(vault => `${vault.name}: APY ${vault.apy}%`);
+      return vaultsDetails.map(vault => `${vault.name}: APY ${vault.apy}%`).join("\n");
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error fetching vault data:", error.message);
       }
-      throw new Error("Yeld backend is currently unavailable. Please try again later.");
+      return "Yield backend is currently unavailable. Please try again later.";
     }
   }
 
@@ -124,7 +123,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   @CreateAction({
     name: "deposit",
     description: `
- This tool allows depositing assets into a Yelay Vault. 
+ This action deposits assets into a specified Yelay Vault. 
  
  It takes:
  - vaultAddress: The address of the Yelay Vault to deposit to
@@ -154,7 +153,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
 
     try {
       const decimals = await wallet.readContract({
-        address: args.tokenAddress as Hex,
+        address: this.config.contracts.VaultWrapper,
         abi,
         functionName: "decimals",
         args: [],
@@ -165,17 +164,17 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
       const data = encodeFunctionData({
         abi: YELAY_VAULT_ABI,
         functionName: "deposit",
-        args: [atomicAssets, args.receiver],
+        args: [atomicAssets, RETAIL_POOL_ID, args.receiver],
       });
 
       const txHash = await wallet.sendTransaction({
-        to: args.vaultAddress as `0x${string}`,
+        to: this.config.contracts.VaultWrapper,
         data,
       });
 
       const receipt = await wallet.waitForTransactionReceipt(txHash);
 
-      return `Deposited ${args.assets} to Yelay Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`;
+      return `Deposited ${args.assets} to Yelay Vault ${args.receiver} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`;
     } catch (error) {
       return `Error depositing to Yelay Vault: ${error}`;
     }
@@ -211,17 +210,17 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
       const data = encodeFunctionData({
         abi: YELAY_VAULT_ABI,
         functionName: "redeem",
-        args: [BigInt(args.assets), args.receiver, args.receiver],
+        args: [BigInt(args.assets), RETAIL_POOL_ID, args.receiver],
       });
 
       const txHash = await wallet.sendTransaction({
-        to: args.vaultAddress as `0x${string}`,
+        to: this.config.contracts.VaultWrapper,
         data,
       });
 
       const receipt = await wallet.waitForTransactionReceipt(txHash);
 
-      return `redeemn ${args.assets} from Yelay Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`;
+      return `redeemed ${args.assets} from Yelay Vault ${args.receiver} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`;
     } catch (error) {
       return `Error redeeming from Yelay Vault: ${error}`;
     }
@@ -246,27 +245,46 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
     schema: YelayClaimSchema,
   })
   async claim(wallet: EvmWalletProvider, args: z.infer<typeof YelayClaimSchema>): Promise<string> {
-    if (BigInt(args.assets) <= 0) {
-      return "Error: Assets amount must be greater than 0";
-    }
-
     try {
-      const data = encodeFunctionData({
-        abi: YIELD_EXTRACTOR_ABI,
-        functionName: "claim",
-        args: [BigInt(args.assets), args.receiver],
-      });
+      const claimRequestResponse = await fetch(
+        `${this.config.backendUrl}/claim-proof?chainId=${this.chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
+      );
+      const claimRequestsRaw: ClaimRequestRaw[] = await claimRequestResponse.json();
 
-      const txHash = await wallet.sendTransaction({
-        to: args.vaultAddress as `0x${string}`,
-        data,
-      });
+      const claimRequests = claimRequestsRaw.map(c => ({
+        yelayLiteVault: c.yelayLiteVault,
+        pool: c.projectId,
+        cycle: c.cycle,
+        yieldSharesTotal: c.yieldSharesTotal,
+        blockNumber: c.blockNumber,
+        proof: c.proof,
+      }));
 
-      const receipt = await wallet.waitForTransactionReceipt(txHash);
+      try {
+        const data = encodeFunctionData({
+          abi: YIELD_EXTRACTOR_ABI,
+          functionName: "claim",
+          args: [claimRequests, RETAIL_POOL_ID, wallet.getAddress()],
+        });
 
-      return `claimed ${args.assets} from Yelay Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`;
+        const txHash = await wallet.sendTransaction({
+          to: this.config.contracts.YieldExtractor,
+          data,
+        });
+
+        const receipt = await wallet.waitForTransactionReceipt(txHash);
+
+        return claimRequests
+          .map(
+            c =>
+              `claimed ${c.yieldSharesTotal} from Yelay Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`,
+          )
+          .join("\n");
+      } catch (error) {
+        return `Error claiming yield from Yelay Vault: ${error}`;
+      }
     } catch (error) {
-      return `Error claiming yield from Yelay Vault: ${error}`;
+      return `Error obtaining proof for yield to claim from Yelay Vault: ${error}`;
     }
   }
 

@@ -2,7 +2,7 @@ import { YelayActionProvider } from "./yelayActionProvider";
 import type { VaultsDetailsResponse, APYResponse } from "./types";
 
 describe("YelayActionProvider", () => {
-  const provider = new YelayActionProvider(8453);
+  const provider = new YelayActionProvider(8453, true);
   const mockVaults: VaultsDetailsResponse[] = [
     {
       address: "0x123...",
@@ -43,32 +43,26 @@ describe("YelayActionProvider", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-
-    global.fetch = jest
-      .fn()
-      .mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockVaults),
-        }),
-      )
-      .mockImplementationOnce(() =>
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockAPYs),
-        }),
-      ) as jest.Mock;
   });
 
   describe("getVaults action execution", () => {
     it("should fetch and merge vaults with their APYs", async () => {
-      const args = {
-        chainId: 8453, // This is actually unused now since we use the provider's chainId
-      };
+      (global.fetch as jest.Mock)
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockVaults),
+          }),
+        )
+        .mockImplementationOnce(() =>
+          Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockAPYs),
+          }),
+        );
+      const result = await provider.getVaults();
 
-      const result = await provider.getVaults(args);
-
-      expect(result).toEqual(["Base WETH Vault: APY 3.4%", "Base USDC Vault: APY 5.2%"]);
+      expect(result).toBe("Base WETH Vault: APY 3.4%\nBase USDC Vault: APY 5.2%");
     });
 
     it("should throw an error when vaults API fails", async () => {
@@ -81,11 +75,11 @@ describe("YelayActionProvider", () => {
         }),
       );
 
-      const args = { chainId: 8453 };
-      await expect(provider.getVaults(args)).rejects.toThrow();
+      const result = await provider.getVaults();
+      expect(result).toBe("Yield backend is currently unavailable. Please try again later.");
     });
 
-    it("should throw an error when APY API fails", async () => {
+    it("should returns an error message when APY API fails", async () => {
       // First call succeeds (vaults), second fails (APYs)
       (global.fetch as jest.Mock)
         .mockImplementationOnce(() =>
@@ -102,8 +96,8 @@ describe("YelayActionProvider", () => {
           }),
         );
 
-      const args = { chainId: 8453 };
-      await expect(provider.getVaults(args)).rejects.toThrow();
+      const result = await provider.getVaults();
+      expect(result).toBe("Yield backend is currently unavailable. Please try again later.");
     });
   });
 });
