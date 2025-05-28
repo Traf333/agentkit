@@ -26,7 +26,7 @@ import type {
   ClaimRequestRaw,
 } from "./types";
 import { getEnvironment, RETAIL_POOL_ID, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI } from "./constants";
-import { Hex, parseUnits, encodeFunctionData } from "viem";
+import { parseUnits, encodeFunctionData } from "viem";
 import { abi } from "../erc20/constants";
 
 const SUPPORTED_NETWORKS = ["1", "146", "8453"]; // Mainnet, Sonic, Base
@@ -126,18 +126,15 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
  This action deposits assets into a specified Yelay Vault. 
  
  It takes:
- - vaultAddress: The address of the Yelay Vault to deposit to
  - assets: The amount of assets to deposit in whole units
    Examples for WETH:
    - 1 WETH
    - 0.1 WETH
    - 0.01 WETH
- - receiver: The address to receive the shares
- - tokenAddress: The address of the token to approve
+ - receiver: The address of the Yelay Vault to deposit to
  
  Important notes:
  - Make sure to use the exact amount provided. Do not convert units for assets for this action.
- - Please use a token address (example 0x4200000000000000000000000000000000000006) for the tokenAddress field.
  `,
     schema: YelayDepositSchema,
   })
@@ -220,7 +217,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
 
       const receipt = await wallet.waitForTransactionReceipt(txHash);
 
-      return `redeemed ${args.assets} from Yelay Vault ${args.receiver} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`;
+      return `Redeemed ${args.assets} from Yelay Vault ${args.receiver} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`;
     } catch (error) {
       return `Error redeeming from Yelay Vault: ${error}`;
     }
@@ -237,10 +234,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
     name: "claim",
     description: `
   This tool allows claiming yield from a Yelay Vault. It takes:
-
   - vaultAddress: The address of the Yelay Vault to claim yield from
-  - assets: The amount of assets to claim in atomic units (wei)
-  - receiver: The address to receive the yield
   `,
     schema: YelayClaimSchema,
   })
@@ -260,11 +254,13 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
         proof: c.proof,
       }));
 
+      console.log("claimRequests", claimRequests);
+
       try {
         const data = encodeFunctionData({
           abi: YIELD_EXTRACTOR_ABI,
           functionName: "claim",
-          args: [claimRequests, RETAIL_POOL_ID, wallet.getAddress()],
+          args: [claimRequests],
         });
 
         const txHash = await wallet.sendTransaction({
@@ -277,7 +273,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
         return claimRequests
           .map(
             c =>
-              `claimed ${c.yieldSharesTotal} from Yelay Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`,
+              `Claimed ${c.yieldSharesTotal} from Yelay Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`,
           )
           .join("\n");
       } catch (error) {
@@ -295,21 +291,14 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
    * @returns True if the network is supported
    */
   supportsNetwork(network: Network): boolean {
-    // Check if the network is EVM and its chain ID is in the supported list
     return (
       network.protocolFamily === "evm" &&
-      network.chainId !== undefined &&
-      SUPPORTED_NETWORKS.includes(network.chainId)
+      (network.chainId ? SUPPORTED_NETWORKS.includes(network.chainId) : false)
     );
   }
 }
 
-/**
- * Factory function to create a new YelayActionProvider instance.
- *
- * @returns A new YelayActionProvider instance
- */
-export interface YelayActionProviderOptions {
+interface YelayActionProviderOptions {
   chainId: ChainId;
   isTest?: boolean;
 }
