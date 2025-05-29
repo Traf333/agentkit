@@ -17,14 +17,9 @@ import {
   YelayDepositSchema,
   YelayRedeemSchema,
   VaultsDetailsSchema,
+  YelayBalanceSchema,
 } from "./schemas";
-import type {
-  APYResponse,
-  VaultsDetailsResponse,
-  ChainId,
-  SDKConfig,
-  ClaimRequestRaw,
-} from "./types";
+import type { APYResponse, VaultsDetailsResponse, ChainId, SDKConfig, ClaimRequest } from "./types";
 import { getEnvironment, RETAIL_POOL_ID, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI } from "./constants";
 import { parseUnits, encodeFunctionData } from "viem";
 import { abi } from "../erc20/constants";
@@ -178,7 +173,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   }
 
   /**
-   * redeems assets from a Yelay Vault
+   * Redeems assets from a Yelay Vault
    *
    * @param wallet - The wallet instance to execute the transaction
    * @param args - The input arguments for the action
@@ -243,19 +238,8 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
       const claimRequestResponse = await fetch(
         `${this.config.backendUrl}/claim-proof?chainId=${this.chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
       );
-      const claimRequestsRaw: ClaimRequestRaw[] = await claimRequestResponse.json();
-
-      const claimRequests = claimRequestsRaw.map(c => ({
-        yelayLiteVault: c.yelayLiteVault,
-        pool: c.projectId,
-        cycle: c.cycle,
-        yieldSharesTotal: c.yieldSharesTotal,
-        blockNumber: c.blockNumber,
-        proof: c.proof,
-      }));
-
+      const claimRequests: ClaimRequest[] = await claimRequestResponse.json();
       console.log("claimRequests", claimRequests);
-
       try {
         const data = encodeFunctionData({
           abi: YIELD_EXTRACTOR_ABI,
@@ -281,6 +265,36 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
       }
     } catch (error) {
       return `Error obtaining proof for yield to claim from Yelay Vault: ${error}`;
+    }
+  }
+
+  /**
+   * Gets user balance from Yelay
+   *
+   * @param wallet - The wallet instance to execute the transaction
+   * @param args - The input arguments for the action
+   * @returns A success message with user postion and generated yield
+   */
+  @CreateAction({
+    name: "get_balance",
+    description: `
+  This tool allows getting user balance from Yelay. It takes:
+  - vaultAddress: The address of the Yelay Vault to get balance from
+  `,
+    schema: YelayBalanceSchema,
+  })
+  async getBalance(
+    wallet: EvmWalletProvider,
+    args: z.infer<typeof YelayBalanceSchema>,
+  ): Promise<string> {
+    try {
+      const balanceResponse = await fetch(
+        `${this.config.backendUrl}/balance?chainId=${this.chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
+      );
+      const balance = await balanceResponse.json();
+      return `User balance from Yelay Vault ${args.vaultAddress}: ${balance}`;
+    } catch (error) {
+      return `Error getting balance from Yelay Vault: ${error}`;
     }
   }
 

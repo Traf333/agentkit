@@ -34,7 +34,7 @@ export const YIELD_EXTRACTOR_ABI = [
           { internalType: "address", name: "yelayLiteVault", type: "address" },
           {
             internalType: "uint256",
-            name: "poolId",
+            name: "projectId",
             type: "uint256",
           },
           {

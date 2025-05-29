@@ -16,21 +16,11 @@ export type APYResponse = {
   apy: string;
 };
 
-export type ClaimRequestRaw = {
+export type ClaimRequest = {
   yelayLiteVault: string;
   projectId: number;
   cycle: number;
   yieldSharesTotal: string;
-  blockNumber: number;
-  proof: string[];
-};
-
-export type ClaimRequest = {
-  yelayLiteVault: string;
-  pool: number;
-  cycle: number;
-  yieldSharesTotal: string;
-  blockNumber: number;
   proof: string[];
 };
 

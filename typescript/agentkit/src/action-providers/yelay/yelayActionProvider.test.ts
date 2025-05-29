@@ -1,6 +1,6 @@
 import { YelayActionProvider } from "./yelayActionProvider";
 import { Network } from "../../network";
-import { APYResponse, ClaimRequestRaw, VaultsDetailsResponse } from "./types";
+import { APYResponse, ClaimRequest, VaultsDetailsResponse } from "./types";
 import { EvmWalletProvider } from "../../wallet-providers";
 import { RETAIL_POOL_ID, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI, getEnvironment } from "./constants";
 import { encodeFunctionData, parseEther } from "viem";
@@ -58,14 +58,13 @@ const mockAPYs: APYResponse[] = [
   },
 ];
 
-const mockClaimProof: ClaimRequestRaw[] = [
+const mockClaimProof: ClaimRequest[] = [
   {
     yelayLiteVault: MOCK_VAULT_ADDRESS,
     projectId: RETAIL_POOL_ID,
     cycle: 1,
     yieldSharesTotal: "100",
-    blockNumber: 1234567,
-    proof: ["0x123..."],
+    proof: ["0x1234567890123456789012345678901234567890123456789012345678901234"], // 32 bites string,
   },
 ];
 
@@ -222,30 +221,34 @@ describe("YelayActionProvider", () => {
       mockedFetch.mockResolvedValue(mockFetchResult(200, mockClaimProof));
       const response = await provider.claim(mockWallet, args);
 
-      const expectedTransformedClaimProof = mockClaimProof.map(c => ({
-        yelayLiteVault: c.yelayLiteVault,
-        pool: c.projectId,
-        cycle: c.cycle,
-        yieldSharesTotal: c.yieldSharesTotal,
-        blockNumber: c.blockNumber,
-        proof: c.proof,
-      }));
-
-      console.log("expectedTransformedClaimProof", expectedTransformedClaimProof);
-
       expect(mockWallet.sendTransaction).toHaveBeenCalledWith({
         to: config.contracts.YieldExtractor,
         data: encodeFunctionData({
           abi: YIELD_EXTRACTOR_ABI,
           functionName: "claim",
-          args: [expectedTransformedClaimProof],
+          args: [mockClaimProof],
         }),
       });
 
       expect(mockWallet.waitForTransactionReceipt).toHaveBeenCalledWith(MOCK_TX_HASH);
-      expect(response).toContain(`Claimed yield from Yelay Vault ${MOCK_VAULT_ADDRESS}`);
+      expect(response).toContain(`Claimed ${mockClaimProof[0].yieldSharesTotal}`);
+      expect(response).toContain(`Yelay Vault ${MOCK_VAULT_ADDRESS}`);
       expect(response).toContain(MOCK_TX_HASH);
       expect(response).toContain(JSON.stringify(MOCK_RECEIPT));
     });
   });
+
+  // describe("balance action", () => {
+  //   it("should get balance from a specified Yelay Vault", async () => {
+  //     const args = {
+  //       vaultAddress: MOCK_VAULT_ADDRESS,
+  //     };
+
+  //     mockedFetch.mockResolvedValue(mockFetchResult(200, {
+
+  //     }));
+  //     const response = await provider.getBalance(mockWallet, args);
+
+  //   });
+  // });
 });
