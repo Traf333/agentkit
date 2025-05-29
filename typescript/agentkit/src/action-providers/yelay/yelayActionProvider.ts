@@ -16,11 +16,16 @@ import {
   YelayClaimSchema,
   YelayDepositSchema,
   YelayRedeemSchema,
-  VaultsDetailsSchema,
   YelayBalanceSchema,
 } from "./schemas";
-import type { APYResponse, VaultsDetailsResponse, ChainId, SDKConfig, ClaimRequest } from "./types";
-import { getEnvironment, RETAIL_POOL_ID, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI } from "./constants";
+import type { APYResponse, VaultsDetailsResponse, ClaimRequest, ChainId } from "./types";
+import {
+  CONTRACTS_BY_CHAIN,
+  RETAIL_POOL_ID,
+  YELAY_BACKEND_URL,
+  YELAY_VAULT_ABI,
+  YIELD_EXTRACTOR_ABI,
+} from "./constants";
 import { parseUnits, encodeFunctionData } from "viem";
 import { abi } from "../erc20/constants";
 
@@ -34,52 +39,36 @@ const SUPPORTED_NETWORKS = ["1", "146", "8453"]; // Mainnet, Sonic, Base
  * It supports all evm networks.
  */
 export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
-  private readonly chainId: ChainId;
-  private readonly isTest: boolean;
-  private readonly config: SDKConfig;
-
   /**
    * Constructor for the YelayActionProvider.
-   *
-   * @param chainId - The chain ID to use for this provider
-   * @param isTest - Whether to use test environment (only supported for Base chain)
    */
-  constructor(chainId: ChainId, isTest: boolean = false) {
+  constructor() {
     super("yelay", []);
-    this.chainId = chainId;
-    this.isTest = isTest;
-    this.config = getEnvironment(chainId, isTest);
   }
 
   /**
    * Gets the details of the Yelay vaults with their last week APY.
    *
+   * @param wallet - The wallet instance to execute the transaction
    * @returns A formatted string containing the list of vaults with their APY.
    */
   @CreateAction({
     name: "get_vaults",
     description: `
-   Getting Yelay vaults for the base network.
-
-    This action demonstrates the basic structure of an action implementation.
-    Replace this description with your actual action's purpose and behavior.
-
-    Include:
-    - What the action does
-    - Required inputs and their format
-    - Expected outputs
-    - Any important considerations or limitations
-  `,
-    schema: VaultsDetailsSchema,
+Getting Yelay vaults for the base network. 
+It takes:
+- chainId: The chain ID of the network`,
+    schema: z.object({}),
   })
-  async getVaults(): Promise<string> {
+  async getVaults(wallet: EvmWalletProvider): Promise<string> {
     let vaultsResponse: Response;
     let vaultAPYsResponse: Response;
 
     try {
+      const chainId = wallet.getNetwork().chainId!;
       [vaultsResponse, vaultAPYsResponse] = await Promise.all([
-        fetch(`${this.config.backendUrl}/vaults?chainId=${this.chainId}`),
-        fetch(`${this.config.backendUrl}/interest/vaults?chainId=${this.chainId}`),
+        fetch(`${YELAY_BACKEND_URL}/vaults?chainId=${chainId}`),
+        fetch(`${YELAY_BACKEND_URL}/interest/vaults?chainId=${chainId}`),
       ]);
 
       if (!vaultsResponse.ok || !vaultAPYsResponse.ok) {
@@ -144,8 +133,10 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
     }
 
     try {
+      const chainId = wallet.getNetwork().chainId! as ChainId;
+
       const decimals = await wallet.readContract({
-        address: this.config.contracts.VaultWrapper,
+        address: CONTRACTS_BY_CHAIN[chainId].VaultWrapper,
         abi,
         functionName: "decimals",
         args: [],
@@ -160,7 +151,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
       });
 
       const txHash = await wallet.sendTransaction({
-        to: this.config.contracts.VaultWrapper,
+        to: CONTRACTS_BY_CHAIN[chainId].VaultWrapper,
         data,
       });
 
@@ -182,12 +173,12 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   @CreateAction({
     name: "redeem",
     description: `
-  This tool allows redeeming assets from a Yelay Vault. It takes:
-  
-  - vaultAddress: The address of the Yelay Vault to redeem from
-  - assets: The amount of assets to redeem in atomic units (wei)
-  - receiver: The address to receive the shares
-  `,
+This tool allows redeeming assets from a Yelay Vault. 
+It takes:
+- assets: The amount of assets to redeem in atomic units (wei)
+- receiver: The address to receive the shares
+- chainId: The chain ID of the network
+`,
     schema: YelayRedeemSchema,
   })
   async redeem(
@@ -199,6 +190,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
     }
 
     try {
+      const chainId = wallet.getNetwork().chainId! as ChainId;
       const data = encodeFunctionData({
         abi: YELAY_VAULT_ABI,
         functionName: "redeem",
@@ -206,7 +198,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
       });
 
       const txHash = await wallet.sendTransaction({
-        to: this.config.contracts.VaultWrapper,
+        to: CONTRACTS_BY_CHAIN[chainId].VaultWrapper,
         data,
       });
 
@@ -228,15 +220,18 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   @CreateAction({
     name: "claim",
     description: `
-  This tool allows claiming yield from a Yelay Vault. It takes:
-  - vaultAddress: The address of the Yelay Vault to claim yield from
-  `,
+This tool allows claiming yield from a Yelay Vault. 
+It takes:
+- vaultAddress: The address of the Yelay Vault to claim yield from
+- chainId: The chain ID of the network
+`,
     schema: YelayClaimSchema,
   })
   async claim(wallet: EvmWalletProvider, args: z.infer<typeof YelayClaimSchema>): Promise<string> {
     try {
+      const chainId = wallet.getNetwork().chainId! as ChainId;
       const claimRequestResponse = await fetch(
-        `${this.config.backendUrl}/claim-proof?chainId=${this.chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
+        `${YELAY_BACKEND_URL}/claim-proof?chainId=${chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
       );
       const claimRequests: ClaimRequest[] = await claimRequestResponse.json();
       console.log("claimRequests", claimRequests);
@@ -248,7 +243,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
         });
 
         const txHash = await wallet.sendTransaction({
-          to: this.config.contracts.YieldExtractor,
+          to: CONTRACTS_BY_CHAIN[chainId].YieldExtractor,
           data,
         });
 
@@ -273,14 +268,15 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
    *
    * @param wallet - The wallet instance to execute the transaction
    * @param args - The input arguments for the action
-   * @returns A success message with user postion and generated yield
+   * @returns A success message with user postion, generated and claimedyield
    */
   @CreateAction({
     name: "get_balance",
     description: `
-  This tool allows getting user balance from Yelay. It takes:
-  - vaultAddress: The address of the Yelay Vault to get balance from
-  `,
+This tool allows getting user balance from Yelay. 
+It takes:
+- vaultAddress: The address of the Yelay Vault to get balance from
+`,
     schema: YelayBalanceSchema,
   })
   async getBalance(
@@ -288,8 +284,9 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
     args: z.infer<typeof YelayBalanceSchema>,
   ): Promise<string> {
     try {
+      const chainId = wallet.getNetwork().chainId! as ChainId;
       const balanceResponse = await fetch(
-        `${this.config.backendUrl}/balance?chainId=${this.chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
+        `${YELAY_BACKEND_URL}/balance?chainId=${chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
       );
       const balance = await balanceResponse.json();
       return `User balance from Yelay Vault ${args.vaultAddress}: ${balance}`;
@@ -312,17 +309,11 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   }
 }
 
-interface YelayActionProviderOptions {
-  chainId: ChainId;
-  isTest?: boolean;
-}
-
 /**
  * Creates a new YelayActionProvider instance
  *
- * @param options - Configuration options for the provider
  * @returns A new YelayActionProvider instance
  */
-export const yelayActionProvider = (options: YelayActionProviderOptions): YelayActionProvider => {
-  return new YelayActionProvider(options.chainId, options.isTest || false);
+export const yelayActionProvider = (): YelayActionProvider => {
+  return new YelayActionProvider();
 };

@@ -32,4 +32,4 @@ export type SDKConfig = {
   };
 };
 
-export type ChainId = 1 | 146 | 8453;
+export type ChainId = "1" | "146" | "8453";

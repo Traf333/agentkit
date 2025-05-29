@@ -2,7 +2,12 @@ import { YelayActionProvider } from "./yelayActionProvider";
 import { Network } from "../../network";
 import { APYResponse, ClaimRequest, VaultsDetailsResponse } from "./types";
 import { EvmWalletProvider } from "../../wallet-providers";
-import { RETAIL_POOL_ID, YELAY_VAULT_ABI, YIELD_EXTRACTOR_ABI, getEnvironment } from "./constants";
+import {
+  CONTRACTS_BY_CHAIN,
+  RETAIL_POOL_ID,
+  YELAY_VAULT_ABI,
+  YIELD_EXTRACTOR_ABI,
+} from "./constants";
 import { encodeFunctionData, parseEther } from "viem";
 
 const mockFetchResult = (status: number, data: object) => {
@@ -19,6 +24,7 @@ const MOCK_RECEIVER_ID = "0x9876543210987654321098765432109876543210";
 const MOCK_TX_HASH = "0xabcdef1234567890";
 const MOCK_RECEIPT = { status: 1, blockNumber: 1234567 };
 const MOCK_DECIMALS = 18;
+const BASE_CHAIN_ID = "8453";
 
 const mockVaults: VaultsDetailsResponse[] = [
   {
@@ -69,8 +75,7 @@ const mockClaimProof: ClaimRequest[] = [
 ];
 
 describe("YelayActionProvider", () => {
-  const provider = new YelayActionProvider(8453, true);
-  const config = getEnvironment(8453, true);
+  const provider = new YelayActionProvider();
   let mockWallet: jest.Mocked<EvmWalletProvider>;
   let mockedFetch: jest.Mock;
   const originalFetch = global.fetch;
@@ -86,7 +91,7 @@ describe("YelayActionProvider", () => {
   beforeEach(() => {
     mockWallet = {
       getAddress: jest.fn().mockReturnValue(MOCK_RECEIVER_ID),
-      getNetwork: jest.fn().mockReturnValue({ protocolFamily: "evm", networkId: "8453" }),
+      getNetwork: jest.fn().mockReturnValue({ protocolFamily: "evm", chainId: BASE_CHAIN_ID }),
       sendTransaction: jest.fn().mockResolvedValue(MOCK_TX_HASH as `0x${string}`),
       waitForTransactionReceipt: jest.fn().mockResolvedValue(MOCK_RECEIPT),
       readContract: jest.fn().mockResolvedValue(MOCK_DECIMALS),
@@ -140,7 +145,7 @@ describe("YelayActionProvider", () => {
         .mockResolvedValueOnce(mockFetchResult(200, mockVaults))
         .mockResolvedValueOnce(mockFetchResult(200, mockAPYs));
 
-      const result = await provider.getVaults();
+      const result = await provider.getVaults(mockWallet);
 
       expect(result).toBe("Base WETH Vault: APY 3.4%\nBase USDC Vault: APY 5.2%");
     });
@@ -148,14 +153,14 @@ describe("YelayActionProvider", () => {
     it("returns error message when vaults API fails", async () => {
       mockedFetch.mockResolvedValue(mockFetchResult(500, mockVaults));
 
-      const result = await provider.getVaults();
+      const result = await provider.getVaults(mockWallet);
       expect(result).toBe("Yield backend is currently unavailable. Please try again later.");
     });
 
     it("returns error message when APY API fails", async () => {
       mockedFetch.mockResolvedValue(mockFetchResult(500, mockAPYs));
 
-      const result = await provider.getVaults();
+      const result = await provider.getVaults(mockWallet);
       expect(result).toBe("Yield backend is currently unavailable. Please try again later.");
     });
   });
@@ -172,7 +177,7 @@ describe("YelayActionProvider", () => {
       const response = await provider.deposit(mockWallet, args);
 
       expect(mockWallet.sendTransaction).toHaveBeenCalledWith({
-        to: config.contracts.VaultWrapper,
+        to: CONTRACTS_BY_CHAIN[BASE_CHAIN_ID].VaultWrapper,
         data: encodeFunctionData({
           abi: YELAY_VAULT_ABI,
           functionName: "deposit",
@@ -197,7 +202,7 @@ describe("YelayActionProvider", () => {
       const response = await provider.redeem(mockWallet, args);
 
       expect(mockWallet.sendTransaction).toHaveBeenCalledWith({
-        to: config.contracts.VaultWrapper,
+        to: CONTRACTS_BY_CHAIN[BASE_CHAIN_ID].VaultWrapper,
         data: encodeFunctionData({
           abi: YELAY_VAULT_ABI,
           functionName: "redeem",
@@ -222,7 +227,7 @@ describe("YelayActionProvider", () => {
       const response = await provider.claim(mockWallet, args);
 
       expect(mockWallet.sendTransaction).toHaveBeenCalledWith({
-        to: config.contracts.YieldExtractor,
+        to: CONTRACTS_BY_CHAIN[BASE_CHAIN_ID].YieldExtractor,
         data: encodeFunctionData({
           abi: YIELD_EXTRACTOR_ABI,
           functionName: "claim",
@@ -238,17 +243,15 @@ describe("YelayActionProvider", () => {
     });
   });
 
-  // describe("balance action", () => {
-  //   it("should get balance from a specified Yelay Vault", async () => {
-  //     const args = {
-  //       vaultAddress: MOCK_VAULT_ADDRESS,
-  //     };
+  describe("balance action", () => {
+    it("should get balance from a specified Yelay Vault", async () => {
+      const args = {
+        vaultAddress: MOCK_VAULT_ADDRESS,
+      };
 
-  //     mockedFetch.mockResolvedValue(mockFetchResult(200, {
-
-  //     }));
-  //     const response = await provider.getBalance(mockWallet, args);
-
-  //   });
-  // });
+      mockedFetch.mockResolvedValue(mockFetchResult(200, {}));
+      const response = await provider.getBalance(mockWallet, args);
+      expect(response).toContain(`Yelay Vault ${MOCK_VAULT_ADDRESS}`);
+    });
+  });
 });

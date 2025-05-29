@@ -1,15 +1,6 @@
 import { z } from "zod";
 
 /**
- * Vaults details query schema
- */
-export const VaultsDetailsSchema = z
-  .object({
-    chainId: z.number().describe("The chain ID of the network"),
-  })
-  .describe("Vaults details query schema");
-
-/**
  * Input schema for Yelay Vault deposit action.
  */
 export const YelayDepositSchema = z
