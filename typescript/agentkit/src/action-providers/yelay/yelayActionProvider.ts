@@ -28,6 +28,7 @@ import {
 } from "./constants";
 import { parseUnits, encodeFunctionData } from "viem";
 import { abi } from "../erc20/constants";
+import { approve } from "../../utils";
 
 const SUPPORTED_NETWORKS = ["1", "146", "8453"]; // Mainnet, Sonic, Base
 
@@ -88,7 +89,13 @@ It takes:
         apy: vaultAPYs.find(apy => apy.vault === vault.address)?.apy,
       }));
 
-      return vaultsDetails.map(vault => `${vault.name}: APY ${vault.apy}%`).join("\n");
+      return vaultsDetails
+        .map(
+          vault => `${vault.name}:
+          Address: ${vault.address}
+          APY: ${vault.apy}%`,
+        )
+        .join("\n----------------\n");
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error fetching vault data:", error.message);
@@ -134,15 +141,15 @@ It takes:
 
     try {
       const chainId = wallet.getNetwork().chainId! as ChainId;
+      const vaultsResponse = await fetch(`${YELAY_BACKEND_URL}/vaults?chainId=${chainId}`);
+      const vaults = (await vaultsResponse.json()) as VaultsDetailsResponse[];
+      const vault = vaults.find(vault => vault.address === args.receiver);
+      if (!vault) {
+        return "Error: Vault not found";
+      }
 
-      const decimals = await wallet.readContract({
-        address: CONTRACTS_BY_CHAIN[chainId].VaultWrapper,
-        abi,
-        functionName: "decimals",
-        args: [],
-      });
-
-      const atomicAssets = parseUnits(args.assets, decimals);
+      const atomicAssets = parseUnits(args.assets, vault.decimals);
+      await approve(wallet, vault.underlying, args.receiver, atomicAssets);
 
       const data = encodeFunctionData({
         abi: YELAY_VAULT_ABI,
@@ -151,7 +158,7 @@ It takes:
       });
 
       const txHash = await wallet.sendTransaction({
-        to: CONTRACTS_BY_CHAIN[chainId].VaultWrapper,
+        to: args.receiver as `0x${string}`,
         data,
       });
 
@@ -191,14 +198,23 @@ It takes:
 
     try {
       const chainId = wallet.getNetwork().chainId! as ChainId;
+      const vaultsResponse = await fetch(`${YELAY_BACKEND_URL}/vaults?chainId=${chainId}`);
+      const vaults = (await vaultsResponse.json()) as VaultsDetailsResponse[];
+      const vault = vaults.find(vault => vault.address === args.receiver);
+      if (!vault) {
+        return "Error: Vault not found";
+      }
+
+      const atomicAssets = parseUnits(args.assets, vault.decimals);
+
       const data = encodeFunctionData({
         abi: YELAY_VAULT_ABI,
         functionName: "redeem",
-        args: [BigInt(args.assets), RETAIL_POOL_ID, args.receiver],
+        args: [atomicAssets, RETAIL_POOL_ID, args.receiver],
       });
 
       const txHash = await wallet.sendTransaction({
-        to: CONTRACTS_BY_CHAIN[chainId].VaultWrapper,
+        to: args.receiver as `0x${string}`,
         data,
       });
 
@@ -287,7 +303,7 @@ It takes:
       const chainId = wallet.getNetwork().chainId! as ChainId;
 
       const balance = (await wallet.readContract({
-        address: CONTRACTS_BY_CHAIN[chainId].VaultWrapper,
+        address: args.vaultAddress as `0x${string}`,
         abi: YELAY_VAULT_ABI,
         functionName: "balanceOf",
         args: [wallet.getAddress(), RETAIL_POOL_ID],

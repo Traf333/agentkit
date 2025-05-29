@@ -1,13 +1,13 @@
 export type VaultsDetailsResponse = {
-  address: string;
+  address: `0x${string}`;
   name: string;
-  symbol: string;
-  balance: string;
+  underlying: `0x${string}`;
   decimals: number;
+  chainId: ChainId;
 };
 
 export type APYResponse = {
-  vault: string;
+  vault: `0x${string}`;
   startBlock: number;
   finishBlock: number;
   startTimestamp: number;
@@ -17,19 +17,11 @@ export type APYResponse = {
 };
 
 export type ClaimRequest = {
-  yelayLiteVault: string;
+  yelayLiteVault: `0x${string}`;
   projectId: number;
   cycle: number;
   yieldSharesTotal: string;
   proof: string[];
-};
-
-export type SDKConfig = {
-  backendUrl: string;
-  contracts: {
-    VaultWrapper: `0x${string}`;
-    YieldExtractor: `0x${string}`;
-  };
 };
 
 export type ChainId = "1" | "146" | "8453";
