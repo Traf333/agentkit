@@ -285,11 +285,36 @@ It takes:
   ): Promise<string> {
     try {
       const chainId = wallet.getNetwork().chainId! as ChainId;
+
+      const balance = (await wallet.readContract({
+        address: CONTRACTS_BY_CHAIN[chainId].VaultWrapper,
+        abi: YELAY_VAULT_ABI,
+        functionName: "balanceOf",
+        args: [wallet.getAddress(), RETAIL_POOL_ID],
+      })) as bigint;
+
       const balanceResponse = await fetch(
-        `${YELAY_BACKEND_URL}/balance?chainId=${chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
+        `${YELAY_BACKEND_URL}/claim-proof?chainId=${chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
       );
-      const balance = await balanceResponse.json();
-      return `User balance from Yelay Vault ${args.vaultAddress}: ${balance}`;
+      if (!balanceResponse.ok) {
+        throw new Error("Claim proof failed");
+      }
+      const claimRequests: ClaimRequest[] = await balanceResponse.json();
+      if (claimRequests.length === 0) {
+        return `User balance from Yelay Vault ${args.vaultAddress}: ${balance}`;
+      }
+      const claimRequest = claimRequests[0];
+      const yieldSharesClaimed = (await wallet.readContract({
+        address: CONTRACTS_BY_CHAIN[chainId].YieldExtractor,
+        abi: YIELD_EXTRACTOR_ABI,
+        functionName: "yieldSharesClaimed",
+        args: [wallet.getAddress(), args.vaultAddress, RETAIL_POOL_ID],
+      })) as bigint;
+
+      return `
+      User balance from Yelay Vault ${args.vaultAddress}: ${balance}
+      Yield shares generated: ${claimRequest.yieldSharesTotal}
+      Yield shares claimed: ${yieldSharesClaimed}`;
     } catch (error) {
       return `Error getting balance from Yelay Vault: ${error}`;
     }

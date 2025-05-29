@@ -283,10 +283,66 @@ describe("YelayActionProvider", () => {
       const args = {
         vaultAddress: MOCK_VAULT_ADDRESS,
       };
+      const balance = BigInt("1000");
+      const yieldSharesClaimed = BigInt("50");
 
-      mockedFetch.mockResolvedValue(mockFetchResult(200, {}));
+      mockWallet.readContract
+        .mockResolvedValueOnce(balance)
+        .mockResolvedValueOnce(yieldSharesClaimed);
+      mockedFetch.mockResolvedValue(mockFetchResult(200, mockClaimProof));
+
       const response = await provider.getBalance(mockWallet, args);
-      expect(response).toContain(`Yelay Vault ${MOCK_VAULT_ADDRESS}`);
+
+      expect(response).toContain(`User balance from Yelay Vault ${MOCK_VAULT_ADDRESS}: ${balance}`);
+      expect(response).toContain(`Yield shares generated: ${mockClaimProof[0].yieldSharesTotal}`);
+      expect(response).toContain(`Yield shares claimed: ${yieldSharesClaimed}`);
+    });
+
+    it("should return only user balance when there is no claimable yield", async () => {
+      const balance = BigInt("1000");
+
+      mockWallet.readContract.mockResolvedValueOnce(balance);
+      mockedFetch.mockResolvedValue(mockFetchResult(200, []));
+
+      const args = {
+        vaultAddress: MOCK_VAULT_ADDRESS,
+      };
+
+      const response = await provider.getBalance(mockWallet, args);
+      expect(response).toContain(`User balance from Yelay Vault ${MOCK_VAULT_ADDRESS}: ${balance}`);
+    });
+
+    it("should return error message when balance fails", async () => {
+      mockWallet.readContract.mockRejectedValue(new Error("Balance failed"));
+
+      const args = {
+        vaultAddress: MOCK_VAULT_ADDRESS,
+      };
+
+      const response = await provider.getBalance(mockWallet, args);
+      expect(response).toContain("Balance failed");
+    });
+
+    it("should return error message when claim proof fails", async () => {
+      mockedFetch.mockResolvedValue(mockFetchResult(500, mockClaimProof));
+
+      const args = {
+        vaultAddress: MOCK_VAULT_ADDRESS,
+      };
+
+      const response = await provider.getBalance(mockWallet, args);
+      expect(response).toContain("Claim proof failed");
+    });
+
+    it("should return error message when yield shares claimed fails", async () => {
+      mockWallet.readContract.mockRejectedValue(new Error("Yield shares claimed failed"));
+
+      const args = {
+        vaultAddress: MOCK_VAULT_ADDRESS,
+      };
+
+      const response = await provider.getBalance(mockWallet, args);
+      expect(response).toContain("Yield shares claimed failed");
     });
   });
 });

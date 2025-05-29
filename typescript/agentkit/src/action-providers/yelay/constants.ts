@@ -24,6 +24,30 @@ export const YELAY_VAULT_ABI = [
     outputs: [{ name: "assets", type: "uint256", internalType: "uint256" }],
     stateMutability: "nonpayable",
   },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "account",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "id",
+        type: "uint256",
+      },
+    ],
+    name: "balanceOf",
+    outputs: [
+      {
+        internalType: "uint256",
+        name: "",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
 ];
 export const YIELD_EXTRACTOR_ABI = [
   {
