@@ -91,11 +91,13 @@ It takes:
 
       return vaultsDetails
         .map(
-          vault => `${vault.name}:
-          Address: ${vault.address}
-          APY: ${vault.apy}%`,
+          vault => `
+${vault.name}:
+Address: ${vault.address}
+APY: ${vault.apy}%
+`,
         )
-        .join("\n----------------\n");
+        .join("----------------");
     } catch (error) {
       if (error instanceof Error) {
         console.error("Error fetching vault data:", error.message);

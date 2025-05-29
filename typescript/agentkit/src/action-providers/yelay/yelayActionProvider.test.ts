@@ -28,24 +28,24 @@ const BASE_CHAIN_ID = "8453";
 
 const mockVaults: VaultsDetailsResponse[] = [
   {
-    address: "0x123...",
+    address: MOCK_VAULT_ADDRESS,
     name: "Base WETH Vault",
-    symbol: "WETH",
-    balance: "1000",
     decimals: 18,
+    chainId: BASE_CHAIN_ID,
+    underlying: "0x123...",
   },
   {
     address: "0x456...",
     name: "Base USDC Vault",
-    symbol: "USDC",
-    balance: "500000",
     decimals: 6,
+    chainId: BASE_CHAIN_ID,
+    underlying: "0x456...",
   },
 ];
 
 const mockAPYs: APYResponse[] = [
   {
-    vault: "0x123...",
+    vault: MOCK_VAULT_ADDRESS,
     startBlock: 1000,
     finishBlock: 2000,
     startTimestamp: 1234567890,
@@ -147,7 +147,15 @@ describe("YelayActionProvider", () => {
 
       const result = await provider.getVaults(mockWallet);
 
-      expect(result).toBe("Base WETH Vault: APY 3.4%\nBase USDC Vault: APY 5.2%");
+      expect(result).toBe(`
+Base WETH Vault:
+Address: ${MOCK_VAULT_ADDRESS}
+APY: 3.4%
+----------------
+Base USDC Vault:
+Address: 0x456...
+APY: 5.2%
+`);
     });
 
     it("returns error message when vaults API fails", async () => {
@@ -171,13 +179,14 @@ describe("YelayActionProvider", () => {
         assets: MOCK_WHOLE_ASSETS,
         receiver: MOCK_VAULT_ADDRESS,
       };
+      mockedFetch.mockResolvedValueOnce(mockFetchResult(200, mockVaults));
 
       const atomicAssets = parseEther(MOCK_WHOLE_ASSETS);
 
       const response = await provider.deposit(mockWallet, args);
 
       expect(mockWallet.sendTransaction).toHaveBeenCalledWith({
-        to: CONTRACTS_BY_CHAIN[BASE_CHAIN_ID].VaultWrapper,
+        to: args.receiver as `0x${string}`,
         data: encodeFunctionData({
           abi: YELAY_VAULT_ABI,
           functionName: "deposit",
@@ -192,6 +201,7 @@ describe("YelayActionProvider", () => {
     });
 
     it("should return error message when deposit fails", async () => {
+      mockedFetch.mockResolvedValueOnce(mockFetchResult(200, mockVaults));
       mockWallet.sendTransaction.mockRejectedValue(new Error("Deposit failed"));
 
       const args = {
@@ -211,14 +221,17 @@ describe("YelayActionProvider", () => {
         receiver: MOCK_VAULT_ADDRESS,
       };
 
+      mockedFetch.mockResolvedValueOnce(mockFetchResult(200, mockVaults));
+
       const response = await provider.redeem(mockWallet, args);
+      const atomicAssets = parseEther(MOCK_WHOLE_ASSETS);
 
       expect(mockWallet.sendTransaction).toHaveBeenCalledWith({
-        to: CONTRACTS_BY_CHAIN[BASE_CHAIN_ID].VaultWrapper,
+        to: args.receiver as `0x${string}`,
         data: encodeFunctionData({
           abi: YELAY_VAULT_ABI,
           functionName: "redeem",
-          args: [BigInt(args.assets), RETAIL_POOL_ID, args.receiver],
+          args: [atomicAssets, RETAIL_POOL_ID, args.receiver],
         }),
       });
 
@@ -229,6 +242,7 @@ describe("YelayActionProvider", () => {
     });
 
     it("should return error message when redeem fails", async () => {
+      mockedFetch.mockResolvedValueOnce(mockFetchResult(200, mockVaults));
       mockWallet.sendTransaction.mockRejectedValue(new Error("Redeem failed"));
 
       const args = {
