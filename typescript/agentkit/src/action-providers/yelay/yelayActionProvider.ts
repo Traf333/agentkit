@@ -234,7 +234,7 @@ It takes:
         `${YELAY_BACKEND_URL}/claim-proof?chainId=${chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
       );
       const claimRequests: ClaimRequest[] = await claimRequestResponse.json();
-      console.log("claimRequests", claimRequests);
+
       try {
         const data = encodeFunctionData({
           abi: YIELD_EXTRACTOR_ABI,
