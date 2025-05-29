@@ -8,7 +8,7 @@ export const YelayDepositSchema = z
     assets: z
       .string()
       .regex(/^\d+(\.\d+)?$/, "Must be a valid integer or decimal value")
-      .describe("The quantity of assets to deposit, in whole units"),
+      .describe("The quantity of assets to deposit"),
     receiver: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format")
@@ -23,8 +23,8 @@ export const YelayRedeemSchema = z
   .object({
     assets: z
       .string()
-      .regex(/^\d+$/, "Must be a valid whole number")
-      .describe("The amount of assets to redeem in atomic units e.g. 1"),
+      .regex(/^\d+$/, "Must be a valid integer or decimal value")
+      .describe("The amount of assets to redeem"),
     receiver: z
       .string()
       .regex(/^0x[a-fA-F0-9]{40}$/, "Invalid Ethereum address format")

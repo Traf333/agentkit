@@ -111,19 +111,19 @@ async function initializeAgent() {
       walletProvider,
       actionProviders: [
         yelayActionProvider(),
-        wethActionProvider(),
-        pythActionProvider(),
+        // wethActionProvider(),
+        // pythActionProvider(),
         walletActionProvider(),
         erc20ActionProvider(),
         erc721ActionProvider(),
-        cdpApiActionProvider({
-          apiKeyName: process.env.CDP_API_KEY_NAME,
-          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY,
-        }),
-        cdpWalletActionProvider({
-          apiKeyName: process.env.CDP_API_KEY_NAME,
-          apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY,
-        }),
+        // cdpApiActionProvider({
+        //   apiKeyName: process.env.CDP_API_KEY_NAME,
+        //   apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY,
+        // }),
+        // cdpWalletActionProvider({
+        //   apiKeyName: process.env.CDP_API_KEY_NAME,
+        //   apiKeyPrivateKey: process.env.CDP_API_KEY_PRIVATE_KEY,
+        // }),
         // Only add OpenSea provider if API key is configured
         ...(process.env.OPENSEA_API_KEY
           ? [
@@ -134,7 +134,7 @@ async function initializeAgent() {
               }),
             ]
           : []),
-        alloraActionProvider(),
+        // alloraActionProvider(),
       ],
     });
 

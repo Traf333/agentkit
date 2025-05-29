@@ -135,12 +135,6 @@ APY: ${vault.apy}%
     wallet: EvmWalletProvider,
     args: z.infer<typeof YelayDepositSchema>,
   ): Promise<string> {
-    const assets = BigInt(args.assets);
-
-    if (assets <= 0) {
-      return "Error: Assets amount must be greater than 0";
-    }
-
     try {
       const chainId = wallet.getNetwork().chainId! as ChainId;
       const vaultsResponse = await fetch(`${YELAY_BACKEND_URL}/vaults?chainId=${chainId}`);
@@ -149,15 +143,20 @@ APY: ${vault.apy}%
       if (!vault) {
         return "Error: Vault not found";
       }
-
       const atomicAssets = parseUnits(args.assets, vault.decimals);
+      if (atomicAssets <= 0) {
+        return "Error: Assets amount must be greater than 0";
+      }
+
       await approve(wallet, vault.underlying, args.receiver, atomicAssets);
 
       const data = encodeFunctionData({
         abi: YELAY_VAULT_ABI,
         functionName: "deposit",
-        args: [atomicAssets, RETAIL_POOL_ID, args.receiver],
+        args: [atomicAssets, RETAIL_POOL_ID, wallet.getAddress() as `0x${string}`],
       });
+
+      console.log("Data:", data);
 
       const txHash = await wallet.sendTransaction({
         to: args.receiver as `0x${string}`,
@@ -194,10 +193,6 @@ It takes:
     wallet: EvmWalletProvider,
     args: z.infer<typeof YelayRedeemSchema>,
   ): Promise<string> {
-    if (BigInt(args.assets) <= 0) {
-      return "Error: Assets amount must be greater than 0";
-    }
-
     try {
       const chainId = wallet.getNetwork().chainId! as ChainId;
       const vaultsResponse = await fetch(`${YELAY_BACKEND_URL}/vaults?chainId=${chainId}`);
@@ -208,11 +203,14 @@ It takes:
       }
 
       const atomicAssets = parseUnits(args.assets, vault.decimals);
+      if (atomicAssets <= 0) {
+        return "Error: Assets amount must be greater than 0";
+      }
 
       const data = encodeFunctionData({
         abi: YELAY_VAULT_ABI,
         functionName: "redeem",
-        args: [atomicAssets, RETAIL_POOL_ID, args.receiver],
+        args: [atomicAssets, RETAIL_POOL_ID, wallet.getAddress() as `0x${string}`],
       });
 
       const txHash = await wallet.sendTransaction({
@@ -252,7 +250,10 @@ It takes:
         `${YELAY_BACKEND_URL}/claim-proof?chainId=${chainId}&u=${wallet.getAddress()}&p=${RETAIL_POOL_ID}&v=${args.vaultAddress}`,
       );
       const claimRequests: ClaimRequest[] = await claimRequestResponse.json();
-
+      if (claimRequests.length === 0) {
+        return "Error: No claim requests found";
+      }
+      // TODO: compare what's been claimed and if 0 return "Error: No yield to claim"
       try {
         const data = encodeFunctionData({
           abi: YIELD_EXTRACTOR_ABI,
