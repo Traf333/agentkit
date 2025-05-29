@@ -10,6 +10,7 @@ import {
   pythActionProvider,
   openseaActionProvider,
   alloraActionProvider,
+  yelayActionProvider,
 } from "@coinbase/agentkit";
 import { getLangChainTools } from "@coinbase/agentkit-langchain";
 import { HumanMessage } from "@langchain/core/messages";
@@ -57,6 +58,15 @@ function validateEnvironment(): void {
 // Add this right after imports and before any other code
 validateEnvironment();
 
+// Debug: Log all environment variables (be careful with sensitive data)
+console.log("Environment variables loaded:");
+console.log("NETWORK_ID:", process.env.NETWORK_ID);
+console.log("CDP_API_KEY_NAME:", process.env.CDP_API_KEY_NAME ? "*** (set)" : "not set");
+console.log(
+  "CDP_API_KEY_PRIVATE_KEY:",
+  process.env.CDP_API_KEY_PRIVATE_KEY ? "*** (set)" : "not set",
+);
+
 // Configure a file to persist the agent's CDP MPC Wallet Data
 const WALLET_DATA_FILE = "wallet_data.txt";
 
@@ -83,6 +93,8 @@ async function initializeAgent() {
         // Continue without wallet data
       }
     }
+    console.log("Wallet data:", walletDataStr);
+    console.log("Network ID:", process.env.NETWORK_ID);
 
     // Configure CDP Wallet Provider
     const config = {
@@ -98,6 +110,7 @@ async function initializeAgent() {
     const agentkit = await AgentKit.from({
       walletProvider,
       actionProviders: [
+        yelayActionProvider(),
         wethActionProvider(),
         pythActionProvider(),
         walletActionProvider(),
@@ -303,10 +316,10 @@ async function main() {
   }
 }
 
-if (require.main === module) {
-  console.log("Starting Agent...");
-  main().catch(error => {
-    console.error("Fatal error:", error);
-    process.exit(1);
-  });
-}
+// if (require.main === module) {
+console.log("Starting Agent...");
+main().catch(error => {
+  console.error("Fatal error:", error);
+  process.exit(1);
+});
+// }

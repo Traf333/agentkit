@@ -5,9 +5,10 @@
   "private": true,
   "author": "Coinbase Inc.",
   "license": "Apache-2.0",
+  "type": "module",
   "scripts": {
-    "start": "NODE_OPTIONS='--no-warnings' ts-node ./chatbot.ts",
-    "dev": "nodemon ./chatbot.ts",
+    "start": "NODE_OPTIONS='--no-warnings' tsx ./chatbot.ts",
+    "dev": "nodemon --exec 'node --loader tsx' ./chatbot.ts",
     "lint": "eslint -c .eslintrc.json *.ts",
     "lint:fix": "eslint -c .eslintrc.json *.ts --fix",
     "format": "prettier --write \"**/*.{ts,js,cjs,json,md}\"",
@@ -24,6 +25,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.0",
-    "ts-node": "^10.9.2"
+    "tsx": "^4.7.1",
+    "typescript": "^5.0.0"
   }
 }
