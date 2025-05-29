@@ -190,6 +190,18 @@ describe("YelayActionProvider", () => {
       expect(response).toContain(MOCK_TX_HASH);
       expect(response).toContain(JSON.stringify(MOCK_RECEIPT));
     });
+
+    it("should return error message when deposit fails", async () => {
+      mockWallet.sendTransaction.mockRejectedValue(new Error("Deposit failed"));
+
+      const args = {
+        assets: MOCK_WHOLE_ASSETS,
+        receiver: MOCK_VAULT_ADDRESS,
+      };
+
+      const response = await provider.deposit(mockWallet, args);
+      expect(response).toContain("Deposit failed");
+    });
   });
 
   describe("redeem action", () => {
@@ -214,6 +226,18 @@ describe("YelayActionProvider", () => {
       expect(response).toContain(`Redeemed ${MOCK_WHOLE_ASSETS}`);
       expect(response).toContain(MOCK_TX_HASH);
       expect(response).toContain(JSON.stringify(MOCK_RECEIPT));
+    });
+
+    it("should return error message when redeem fails", async () => {
+      mockWallet.sendTransaction.mockRejectedValue(new Error("Redeem failed"));
+
+      const args = {
+        assets: MOCK_WHOLE_ASSETS,
+        receiver: MOCK_VAULT_ADDRESS,
+      };
+
+      const response = await provider.redeem(mockWallet, args);
+      expect(response).toContain("Redeem failed");
     });
   });
 
@@ -240,6 +264,17 @@ describe("YelayActionProvider", () => {
       expect(response).toContain(`Yelay Vault ${MOCK_VAULT_ADDRESS}`);
       expect(response).toContain(MOCK_TX_HASH);
       expect(response).toContain(JSON.stringify(MOCK_RECEIPT));
+    });
+
+    it("should return error message when claim fails", async () => {
+      mockWallet.sendTransaction.mockRejectedValue(new Error("Claim failed"));
+
+      const args = {
+        vaultAddress: MOCK_VAULT_ADDRESS,
+      };
+
+      const response = await provider.claim(mockWallet, args);
+      expect(response).toContain("Claim failed");
     });
   });
 
