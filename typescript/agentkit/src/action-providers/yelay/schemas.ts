@@ -23,7 +23,7 @@ export const YelayRedeemSchema = z
   .object({
     assets: z
       .string()
-      .regex(/^\d+$/, "Must be a valid integer or decimal value")
+      .regex(/^\d+(\.\d+)?$/, "Must be a valid integer or decimal value")
       .describe("The amount of assets to redeem"),
     receiver: z
       .string()

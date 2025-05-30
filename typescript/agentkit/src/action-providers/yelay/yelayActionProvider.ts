@@ -27,7 +27,7 @@ import {
   YIELD_EXTRACTOR_ABI,
 } from "./constants";
 import { parseUnits, encodeFunctionData } from "viem";
-import { abi } from "../erc20/constants";
+
 import { approve } from "../../utils";
 
 const SUPPORTED_NETWORKS = ["1", "146", "8453"]; // Mainnet, Sonic, Base
@@ -50,7 +50,7 @@ export class YelayActionProvider extends ActionProvider<EvmWalletProvider> {
   /**
    * Gets the details of the Yelay vaults with their last week APY.
    *
-   * @param wallet - The wallet instance to execute the transaction
+   * @param wallet - The wallet instance to get chainId
    * @returns A formatted string containing the list of vaults with their APY.
    */
   @CreateAction({
@@ -140,9 +140,11 @@ APY: ${vault.apy}%
       const vaultsResponse = await fetch(`${YELAY_BACKEND_URL}/vaults?chainId=${chainId}`);
       const vaults = (await vaultsResponse.json()) as VaultsDetailsResponse[];
       const vault = vaults.find(vault => vault.address === args.receiver);
+
       if (!vault) {
         return "Error: Vault not found";
       }
+
       const atomicAssets = parseUnits(args.assets, vault.decimals);
       if (atomicAssets <= 0) {
         return "Error: Assets amount must be greater than 0";
@@ -156,16 +158,11 @@ APY: ${vault.apy}%
         args: [atomicAssets, RETAIL_POOL_ID, wallet.getAddress() as `0x${string}`],
       });
 
-      console.log("Data:", data);
+      const txHash = await wallet.sendTransaction({ to: args.receiver as `0x${string}`, data });
 
-      const txHash = await wallet.sendTransaction({
-        to: args.receiver as `0x${string}`,
-        data,
-      });
+      await wallet.waitForTransactionReceipt(txHash);
 
-      const receipt = await wallet.waitForTransactionReceipt(txHash);
-
-      return `Deposited ${args.assets} to Yelay Vault ${args.receiver} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`;
+      return `Deposited ${args.assets} to Yelay Vault ${args.receiver} with transaction hash: ${txHash}`;
     } catch (error) {
       return `Error depositing to Yelay Vault: ${error}`;
     }
@@ -198,6 +195,7 @@ It takes:
       const vaultsResponse = await fetch(`${YELAY_BACKEND_URL}/vaults?chainId=${chainId}`);
       const vaults = (await vaultsResponse.json()) as VaultsDetailsResponse[];
       const vault = vaults.find(vault => vault.address === args.receiver);
+
       if (!vault) {
         return "Error: Vault not found";
       }
@@ -213,14 +211,11 @@ It takes:
         args: [atomicAssets, RETAIL_POOL_ID, wallet.getAddress() as `0x${string}`],
       });
 
-      const txHash = await wallet.sendTransaction({
-        to: args.receiver as `0x${string}`,
-        data,
-      });
+      const txHash = await wallet.sendTransaction({ to: args.receiver as `0x${string}`, data });
 
-      const receipt = await wallet.waitForTransactionReceipt(txHash);
+      await wallet.waitForTransactionReceipt(txHash);
 
-      return `Redeemed ${args.assets} from Yelay Vault ${args.receiver} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`;
+      return `Redeemed ${args.assets} from Yelay Vault ${args.receiver} with transaction hash: ${txHash}`;
     } catch (error) {
       return `Error redeeming from Yelay Vault: ${error}`;
     }
