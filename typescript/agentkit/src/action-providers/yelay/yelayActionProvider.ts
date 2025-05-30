@@ -261,12 +261,12 @@ It takes:
           data,
         });
 
-        const receipt = await wallet.waitForTransactionReceipt(txHash);
+        await wallet.waitForTransactionReceipt(txHash);
 
         return claimRequests
           .map(
             c =>
-              `Claimed ${c.yieldSharesTotal} from Yelay Vault ${args.vaultAddress} with transaction hash: ${txHash}\nTransaction receipt: ${JSON.stringify(receipt)}`,
+              `Claimed ${c.yieldSharesTotal} from Yelay Vault ${args.vaultAddress} with transaction hash: ${txHash}`,
           )
           .join("\n");
       } catch (error) {

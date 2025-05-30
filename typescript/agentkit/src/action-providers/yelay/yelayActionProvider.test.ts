@@ -190,14 +190,13 @@ APY: 5.2%
         data: encodeFunctionData({
           abi: YELAY_VAULT_ABI,
           functionName: "deposit",
-          args: [atomicAssets, RETAIL_POOL_ID, args.receiver],
+          args: [atomicAssets, RETAIL_POOL_ID, MOCK_RECEIVER_ID],
         }),
       });
 
       expect(mockWallet.waitForTransactionReceipt).toHaveBeenCalledWith(MOCK_TX_HASH);
       expect(response).toContain(`Deposited ${MOCK_WHOLE_ASSETS}`);
       expect(response).toContain(MOCK_TX_HASH);
-      expect(response).toContain(JSON.stringify(MOCK_RECEIPT));
     });
 
     it("should return error message when deposit fails", async () => {
@@ -231,14 +230,13 @@ APY: 5.2%
         data: encodeFunctionData({
           abi: YELAY_VAULT_ABI,
           functionName: "redeem",
-          args: [atomicAssets, RETAIL_POOL_ID, args.receiver],
+          args: [atomicAssets, RETAIL_POOL_ID, MOCK_RECEIVER_ID],
         }),
       });
 
       expect(mockWallet.waitForTransactionReceipt).toHaveBeenCalledWith(MOCK_TX_HASH);
       expect(response).toContain(`Redeemed ${MOCK_WHOLE_ASSETS}`);
       expect(response).toContain(MOCK_TX_HASH);
-      expect(response).toContain(JSON.stringify(MOCK_RECEIPT));
     });
 
     it("should return error message when redeem fails", async () => {
@@ -277,7 +275,6 @@ APY: 5.2%
       expect(response).toContain(`Claimed ${mockClaimProof[0].yieldSharesTotal}`);
       expect(response).toContain(`Yelay Vault ${MOCK_VAULT_ADDRESS}`);
       expect(response).toContain(MOCK_TX_HASH);
-      expect(response).toContain(JSON.stringify(MOCK_RECEIPT));
     });
 
     it("should return error message when claim fails", async () => {
