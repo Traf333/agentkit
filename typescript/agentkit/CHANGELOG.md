@@ -1,5 +1,11 @@
 # AgentKit Changelog
 
+## 0.10.3
+
+### Patch Changes
+
+- [`4ccd8b8`](https://github.com/coinbase/agentkit/commit/4ccd8b89b45308933988ee0f80147de80478cb65) Thanks [@Traf333](https://github.com/Traf333)! - Added YelayLite action provider
+
 ## 0.10.2
 
 ### Patch Changes
